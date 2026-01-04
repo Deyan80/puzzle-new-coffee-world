@@ -36,14 +36,13 @@
     <button onclick="showSolution()">Покажи</button>
     <button id="playPauseBtn" onclick="togglePlay()">Пусни музика</button>
 </div>
-<canvas id="board"></canvas>
+<canvas id="board" width="600" height="400"></canvas>
 <div id="info">
     <span>Време: <span id="time">00:00</span></span> |
     <span>Ходове: <span id="moves">0</span></span>
 </div>
 <p>Влачете цветните парчета върху празното място, за да ги преместите.</p>
 
-<!-- Изображението и музиката -->
 <img id="source" src="new-coffee-world.jpg" alt="Снимка от New Coffee WORLD">
 <audio id="backgroundMusic" src="song.mp3" loop></audio>
 
@@ -72,50 +71,35 @@ img.onload = function() {
     isLoaded = true;
     init(size);
 };
-img.onerror = function() {
-    alert('Грешка при зареждане на изображението.');
-};
-if(img.complete) {
-    isLoaded = true;
-    init(size);
-}
+img.onerror = function() { alert('Грешка при зареждане на изображението.'); };
+if(img.complete){ isLoaded=true; init(size); }
 
 // Музика
-audio.onerror = function() { alert('Грешка при зареждане на музиката.'); };
-function togglePlay() {
-    if(audio.paused) {
-        audio.play().then(()=>{ playPauseBtn.innerText='Спри музика'; }).catch(()=>alert('Грешка при пускане на музиката.'));
-    } else {
-        audio.pause();
-        playPauseBtn.innerText='Пусни музика';
-    }
-}
+audio.onerror=function(){ alert('Грешка при зареждане на музиката.'); };
+function togglePlay(){ if(audio.paused){ audio.play().then(()=>playPauseBtn.innerText='Спри музика').catch(()=>alert('Грешка при пускане на музиката.')); } else{ audio.pause(); playPauseBtn.innerText='Пусни музика'; }}
 
 // Инициализация
 function init(newSize){
-    if(!isLoaded) { alert('Изображението все още не е заредено.'); return; }
-    size = newSize;
+    if(!isLoaded){ alert('Изображението все още не е заредено.'); return; }
+    size=newSize;
 
-    // Canvas размер според екрана
-    let maxWidth = Math.min(window.innerWidth-40,600);
-    let maxHeight = Math.min(window.innerHeight-200,400);
-    canvas.width = maxWidth;
-    canvas.height = maxHeight;
-    tileSize = Math.min(canvas.width/size, canvas.height/size);
+    // Canvas остава 600x400 за десктоп (водещо)
+    canvas.width=600;
+    canvas.height=400;
+    tileSize=Math.min(canvas.width/size,canvas.height/size);
 
-    // Източник на изображението, скалирано, за да се вижда цялото
-    sourceCanvas = document.createElement('canvas');
-    sourceCanvas.width = canvas.width;
-    sourceCanvas.height = canvas.height;
-    let sCtx = sourceCanvas.getContext('2d');
-    let scale = Math.max(canvas.width/img.width, canvas.height/img.height); // cover
-    let sw = img.width;
-    let sh = img.height;
-    let dx = (canvas.width - sw*scale)/2;
-    let dy = (canvas.height - sh*scale)/2;
-    sCtx.drawImage(img,0,0,sw,sh,dx,dy,sw*scale,sh*scale);
+    // Скалиране на снимката в отделен canvas, като цялото изображение се вижда
+    sourceCanvas=document.createElement('canvas');
+    sourceCanvas.width=canvas.width;
+    sourceCanvas.height=canvas.height;
+    let sCtx=sourceCanvas.getContext('2d');
 
-    board = Array.from({length:size*size},(_,i)=>i);
+    let scale=Math.min(canvas.width/img.width,canvas.height/img.height); // fit whole image
+    let dx=(canvas.width-img.width*scale)/2;
+    let dy=(canvas.height-img.height*scale)/2;
+    sCtx.drawImage(img,0,0,img.width,img.height,dx,dy,img.width*scale,img.height*scale);
+
+    board=Array.from({length:size*size},(_,i)=>i);
     board[size*size-1]=-1;
     blankPos={x:size-1,y:size-1};
     moves=0;
@@ -190,25 +174,23 @@ function draw(){
     }
 }
 
-// Функции за влачене и подреждане
+// (Останалите функции за влачене, shuffle, showSolution и timer са същите като преди)
 function getTileAt(x,y){let col=Math.floor(x/tileSize);let row=Math.floor(y/tileSize);return(col>=0&&col<size&&row>=0&&row<size)?row*size+col:-1;}
-function startDragging(event){if(isSolved||!isLoaded) return;let rect=canvas.getBoundingClientRect();let x=event.clientX-rect.left;let y=event.clientY-rect.top;let index=getTileAt(x,y);if(index>=0&&board[index]!==-1){draggedTile=index;dragOffset.x=(index%size)*tileSize-x;dragOffset.y=Math.floor(index/size)*tileSize-y;lastTouchPos={x:x,y:y};canvas.classList.add('dragging');draw();}}
-function startTouch(event){if(isSolved||!isLoaded) return;event.preventDefault();if(event.touches.length>1) return;let rect=canvas.getBoundingClientRect();let x=event.touches[0].clientX-rect.left;let y=event.touches[0].clientY-rect.top;let index=getTileAt(x,y);if(index>=0&&board[index]!==-1){draggedTile=index;dragOffset.x=(index%size)*tileSize-x;dragOffset.y=Math.floor(index/size)*tileSize-y;lastTouchPos={x:x,y:y};canvas.classList.add('dragging');draw();}}
-function drag(event){if(draggedTile===null) return;let rect=canvas.getBoundingClientRect();lastTouchPos={x:event.clientX-rect.left,y:event.clientY-rect.top};draw();}
-function touchMove(event){if(draggedTile===null) return;event.preventDefault();if(event.touches.length>1) return;let rect=canvas.getBoundingClientRect();lastTouchPos={x:event.touches[0].clientX-rect.left,y:event.touches[0].clientY-rect.top};draw();}
-function drop(event){if(draggedTile===null||isSolved||!isLoaded) return;let rect=canvas.getBoundingClientRect();let x=event.clientX-rect.left;let y=event.clientY-rect.top;let targetIndex=getTileAt(x,y);let blankIndex=blankPos.y*size+blankPos.x;if(targetIndex===blankIndex){[board[draggedTile],board[blankIndex]]=[board[blankIndex],board[draggedTile]];blankPos.x=Math.floor(draggedTile%size);blankPos.y=Math.floor(draggedTile/size);moves++;document.getElementById('moves').innerText=moves;draw();checkSolved();}draggedTile=null;lastTouchPos=null;canvas.classList.remove('dragging');draw();}
-function touchEnd(event){if(draggedTile===null||isSolved||!isLoaded) return;event.preventDefault();let rect=canvas.getBoundingClientRect();let x=lastTouchPos?lastTouchPos.x:event.changedTouches[0].clientX-rect.left;let y=lastTouchPos?lastTouchPos.y:event.changedTouches[0].clientY-rect.top;let targetIndex=getTileAt(x,y);let blankIndex=blankPos.y*size+blankPos.x;if(targetIndex===blankIndex){[board[draggedTile],board[blankIndex]]=[board[blankIndex],board[draggedTile]];blankPos.x=Math.floor(draggedTile%size);blankPos.y=Math.floor(draggedTile/size);moves++;document.getElementById('moves').innerText=moves;draw();checkSolved();}draggedTile=null;lastTouchPos=null;canvas.classList.remove('dragging');draw();}
+function startDragging(event){if(isSolved||!isLoaded)return;let rect=canvas.getBoundingClientRect();let x=event.clientX-rect.left;let y=event.clientY-rect.top;let index=getTileAt(x,y);if(index>=0&&board[index]!==-1){draggedTile=index;dragOffset.x=(index%size)*tileSize-x;dragOffset.y=Math.floor(index/size)*tileSize-y;lastTouchPos={x:x,y:y};canvas.classList.add('dragging');draw();}}
+function startTouch(event){if(isSolved||!isLoaded)return;event.preventDefault();if(event.touches.length>1)return;let rect=canvas.getBoundingClientRect();let x=event.touches[0].clientX-rect.left;let y=event.touches[0].clientY-rect.top;let index=getTileAt(x,y);if(index>=0&&board[index]!==-1){draggedTile=index;dragOffset.x=(index%size)*tileSize-x;dragOffset.y=Math.floor(index/size)*tileSize-y;lastTouchPos={x:x,y:y};canvas.classList.add('dragging');draw();}}
+function drag(event){if(draggedTile===null)return;let rect=canvas.getBoundingClientRect();lastTouchPos={x:event.clientX-rect.left,y:event.clientY-rect.top};draw();}
+function touchMove(event){if(draggedTile===null)return;event.preventDefault();if(event.touches.length>1)return;let rect=canvas.getBoundingClientRect();lastTouchPos={x:event.touches[0].clientX-rect.left,y:event.touches[0].clientY-rect.top};draw();}
+function drop(event){if(draggedTile===null||isSolved||!isLoaded)return;let rect=canvas.getBoundingClientRect();let x=event.clientX-rect.left;let y=event.clientY-rect.top;let targetIndex=getTileAt(x,y);let blankIndex=blankPos.y*size+blankPos.x;if(targetIndex===blankIndex){[board[draggedTile],board[blankIndex]]=[board[blankIndex],board[draggedTile]];blankPos.x=Math.floor(draggedTile%size);blankPos.y=Math.floor(draggedTile/size);moves++;document.getElementById('moves').innerText=moves;draw();checkSolved();}draggedTile=null;lastTouchPos=null;canvas.classList.remove('dragging');draw();}
+function touchEnd(event){if(draggedTile===null||isSolved||!isLoaded)return;event.preventDefault();let rect=canvas.getBoundingClientRect();let x=lastTouchPos?lastTouchPos.x:event.changedTouches[0].clientX-rect.left;let y=lastTouchPos?lastTouchPos.y:event.changedTouches[0].clientY-rect.top;let targetIndex=getTileAt(x,y);let blankIndex=blankPos.y*size+blankPos.x;if(targetIndex===blankIndex){[board[draggedTile],board[blankIndex]]=[board[blankIndex],board[draggedTile]];blankPos.x=Math.floor(draggedTile%size);blankPos.y=Math.floor(draggedTile/size);moves++;document.getElementById('moves').innerText=moves;draw();checkSolved();}draggedTile=null;lastTouchPos=null;canvas.classList.remove('dragging');draw();}
 function cancelDrag(){draggedTile=null;lastTouchPos=null;canvas.classList.remove('dragging');draw();}
 function checkSolved(){let solved=board.every((v,i)=>v===i||(i===board.length-1&&v===-1));if(solved){isSolved=true;clearInterval(timer);draw();alert('Поздравления! Решихте пъзела!');}}
-function shuffle(){if(isSolved||!isLoaded) return;for(let i=0;i<1000;i++){let dirs=[{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];let dir=dirs[Math.floor(Math.random()*4)];let nx=blankPos.x+dir.dx;let ny=blankPos.y+dir.dy;if(nx>=0&&nx<size&&ny>=0&&ny<size){let ni=ny*size+nx;let bi=blankPos.y*size+blankPos.x;[board[ni],board[bi]]=[board[bi],board[ni]];blankPos.x=nx;blankPos.y=ny;}}moves=0;timeElapsed=0;document.getElementById('moves').innerText=moves;document.getElementById('time').innerText='00:00';draw();}
+function shuffle(){if(isSolved||!isLoaded)return;for(let i=0;i<1000;i++){let dirs=[{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];let dir=dirs[Math.floor(Math.random()*4)];let nx=blankPos.x+dir.dx;let ny=blankPos.y+dir.dy;if(nx>=0&&nx<size&&ny>=0&&ny<size){let ni=ny*size+nx;let bi=blankPos.y*size+blankPos.x;[board[ni],board[bi]]=[board[bi],board[ni]];blankPos.x=nx;blankPos.y=ny;}}moves=0;timeElapsed=0;document.getElementById('moves').innerText=moves;document.getElementById('time').innerText='00:00';draw();}
 function showSolution(){board=Array.from({length:size*size},(_,i)=>i);board[size*size-1]=-1;blankPos={x:size-1,y:size-1};isSolved=true;moves=0;document.getElementById('moves').innerText=moves;clearInterval(timer);draw();}
 function updateTime(){timeElapsed++;let m=Math.floor(timeElapsed/60);let s=timeElapsed%60;document.getElementById('time').innerText=(m<10?'0'+m:m)+':' + (s<10?'0'+s:s);}
-
-// Ресайз на прозореца – синхронизира мобилно/десктоп
-window.addEventListener('resize',()=>{init(size);});
 </script>
 </body>
 </html>
+
 
 
 
